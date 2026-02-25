@@ -12,22 +12,22 @@ import lombok.AllArgsConstructor;
 @AllArgsConstructor
 public class DecentSearchDTO {
 
-    // 🔑 Identification déclaration
-    private Integer debur;
-    private String deimpexp;
-    private Long derepert;
+    // ─── Mode 1 : Recherche par numéro de déclaration ────────
+    private Integer debur; // Bureau de dédouanement
+    private String denumdec; // Numéro de déclaration (DENUMDEC)
+    private Long derepert; // Numéro répertoire du déclarant
 
-    // 📄 Déclaration
-    private String codeDeclaration; // Maps to denumdec
-    // Maps to danumtcce (String in DTO, but Long in DB - need conversion or parse)
-    // User requested "numeroTCE": "string".
-    private String numeroTCE;
-    private Integer daregdecl; // Constant: DAREGDECL
-    private String detypdec; // Constant: DETYPDEC
-    private LocalDateTime dedatin; // Constant: dedatin
-    private String danomencl; // Constant: NDP
+    // ─── Mode 2 : Recherche IMP/EXP ──────────────────────────
+    private String deimpexp; // Code en douane de l'opérateur
+    private LocalDateTime dedatin; // Date de déclaration (insertion)
 
-    // 📅 Date Range
+    // ─── Recherche avancée (inchangée) ───────────────────────
+    private String numeroTCE; // → danumtcce (Décart)
+    private Integer daregdecl; // Numéro TCE (registre)
+    private String detypdec; // Type déclaration
+    private String danomencl; // NDP — Nomenclature
+
+    // 📅 Plage de dates
     private LocalDateTime startDate;
     private LocalDateTime endDate;
 

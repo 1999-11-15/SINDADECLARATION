@@ -1,15 +1,19 @@
 import React, { useState } from 'react';
-// HNA EL BADEL LEWWEL: FASSAKHNA EL IMPORT MTE3 REACT-ICONS JEMLA
-// import { FaSearch, FaTrash, FaPlus, FaTimes } from 'react-icons/fa';
 
 const SearchContainer = ({ onSearch, onClear }) => {
   const [open, setOpen] = useState(false);
+  const [searchMode, setSearchMode] = useState('numDec'); // 'numDec' or 'impExp'
 
   const [fields, setFields] = useState({
+    // Common field
     bureau: '',
+    // Mode 1 fields (simple search)
+    numDeclaration: '',
+    dateDec: '',
+    // Mode 2 fields (IMP/EXP)
     codeOperateur: '',
     numRepertoire: '',
-    // Advanced fields
+    // Advanced fields (unchanged)
     dcnumesc: '',
     dcrubr: '',
     numeroTCE: '',
@@ -20,7 +24,6 @@ const SearchContainer = ({ onSearch, onClear }) => {
     startDate: '',
     endDate: ''
   });
-  const [searchMode, setSearchMode] = useState('numDec');
 
   const [error, setError] = useState('');
 
@@ -30,33 +33,34 @@ const SearchContainer = ({ onSearch, onClear }) => {
   };
 
   const handleSearchClick = () => {
-    // Check if at least one field is filled (simple or advanced)
     const hasValue = Object.values(fields).some(val => val && val.trim() !== '');
     if (!hasValue) {
       setError('Veuillez remplir au moins un champ pour la recherche.');
       return;
     }
-
     setError('');
-    onSearch(fields);
+    onSearch({ ...fields, searchMode });
   };
 
   const toggleSearchMode = () => {
     if (searchMode === 'numDec') {
-      setSearchMode('codeRep');
-      setFields({ ...fields, numDeclaration: '' });
+      setSearchMode('impExp');
+      // Clear Mode 1 specific fields
+      setFields({ ...fields, numDeclaration: '', dateDec: '' });
     } else {
       setSearchMode('numDec');
-      setFields({ ...fields, codeOperateur: '', numRepertoire: '' });
+      // Clear Mode 2 specific fields
+      setFields({ ...fields, codeOperateur: '', numRepertoire: '', dateDec: '' });
     }
   };
-
 
   const handleClearClick = () => {
     setFields({
       bureau: '',
-      codeOperateur: '',
+      numDeclaration: '',
       numRepertoire: '',
+      codeOperateur: '',
+      dateDec: '',
       dcnumesc: '',
       dcrubr: '',
       numeroTCE: '',
@@ -79,6 +83,7 @@ const SearchContainer = ({ onSearch, onClear }) => {
 
       <div className='search-body'>
         <div className="simple-search">
+          {/* Bureau — commun aux deux modes */}
           <input
             name="bureau"
             className="simple-input"
@@ -86,20 +91,57 @@ const SearchContainer = ({ onSearch, onClear }) => {
             value={fields.bureau}
             onChange={handleInputChange}
           />
-          <input
-            name="codeOperateur"
-            className="simple-input"
-            placeholder="Code en douane de l'opérateur"
-            value={fields.codeOperateur}
-            onChange={handleInputChange}
-          />
-          <input
-            name="numRepertoire"
-            className="simple-input"
-            placeholder="Numéro répertoire du déclarant"
-            value={fields.numRepertoire}
-            onChange={handleInputChange}
-          />
+
+          {searchMode === 'numDec' ? (
+            <>
+              {/* Mode 1 : Bureau + Numéro de déclaration + Date */}
+              <input
+                name="numDeclaration"
+                className="simple-input"
+                placeholder="Numéro de déclaration"
+                value={fields.numDeclaration}
+                onChange={handleInputChange}
+              />
+              <input
+                name="dateDec"
+                className="simple-input"
+                placeholder="Date de déclaration"
+                type="text"
+                onFocus={(e) => e.target.type = 'date'}
+                onBlur={(e) => { if (!e.target.value) e.target.type = 'text'; }}
+                value={fields.dateDec}
+                onChange={handleInputChange}
+              />
+            </>
+          ) : (
+            <>
+              {/* Mode 2 : Bureau + Code en douane + Répertoire + Date */}
+              <input
+                name="codeOperateur"
+                className="simple-input"
+                placeholder="Code en douane de l'opérateur"
+                value={fields.codeOperateur}
+                onChange={handleInputChange}
+              />
+              <input
+                name="numRepertoire"
+                className="simple-input"
+                placeholder="Numéro répertoire du déclarant"
+                value={fields.numRepertoire}
+                onChange={handleInputChange}
+              />
+              <input
+                name="dateDec"
+                className="simple-input"
+                placeholder="Date de déclaration"
+                type="text"
+                onFocus={(e) => e.target.type = 'date'}
+                onBlur={(e) => { if (!e.target.value) e.target.type = 'text'; }}
+                value={fields.dateDec}
+                onChange={handleInputChange}
+              />
+            </>
+          )}
         </div>
 
         {error && <p className="error-message">{error}</p>}
@@ -107,7 +149,7 @@ const SearchContainer = ({ onSearch, onClear }) => {
         <div className="add-field-container">
           <button className="add-field-btn" onClick={toggleSearchMode}>
             <span>
-              {searchMode === 'numDec' ? '+ Ajouter Imp / Exp' : 'X Utiliser Numero de Declaration'}
+              {searchMode === 'numDec' ? '+ Ajouter Imp / Exp' : '✕ Utiliser Numéro de Déclaration'}
             </span>
           </button>
         </div>
@@ -119,16 +161,16 @@ const SearchContainer = ({ onSearch, onClear }) => {
 
         {open && (
           <div className="advanced-search-form">
-            <input name="dcnumesc" className="advanced-input" placeholder="escale" value={fields.dcnumesc} onChange={handleInputChange} />
-            <input name="dcrubr" className="advanced-input" placeholder="rubrique" value={fields.dcrubr} onChange={handleInputChange} />
+            <input name="dcnumesc" className="advanced-input" placeholder="Escale" value={fields.dcnumesc} onChange={handleInputChange} />
+            <input name="dcrubr" className="advanced-input" placeholder="Rubrique" value={fields.dcrubr} onChange={handleInputChange} />
             <input name="numeroTCE" className="advanced-input" placeholder="TCE" value={fields.numeroTCE} onChange={handleInputChange} />
             <input name="danomencl" className="advanced-input" placeholder="NDP (Nomenclature)" value={fields.danomencl} onChange={handleInputChange} />
-            <input name="dateRegul" className="advanced-input" placeholder="Date de régularisation" type="text" onFocus={(e) => e.target.type = 'date'} onBlur={(e) => e.target.type = 'text'} value={fields.dateRegul} onChange={handleInputChange} />
+            <input name="dateRegul" className="advanced-input" placeholder="Date de régularisation" type="text" onFocus={(e) => e.target.type = 'date'} onBlur={(e) => { if (!e.target.value) e.target.type = 'text'; }} value={fields.dateRegul} onChange={handleInputChange} />
             <input name="detypdec" className="advanced-input" placeholder="Type déclaration" value={fields.detypdec} onChange={handleInputChange} />
             <input name="regime" className="advanced-input" placeholder="Régime" value={fields.regime} onChange={handleInputChange} />
             <div className="date-range-container" style={{ display: 'contents' }}>
-              <input name="startDate" className="advanced-input" placeholder="Date début" type="text" onFocus={(e) => e.target.type = 'date'} onBlur={(e) => e.target.type = 'text'} value={fields.startDate} onChange={handleInputChange} />
-              <input name="endDate" className="advanced-input" placeholder="Date fin" type="text" onFocus={(e) => e.target.type = 'date'} onBlur={(e) => e.target.type = 'text'} value={fields.endDate} onChange={handleInputChange} />
+              <input name="startDate" className="advanced-input" placeholder="Date début" type="text" onFocus={(e) => e.target.type = 'date'} onBlur={(e) => { if (!e.target.value) e.target.type = 'text'; }} value={fields.startDate} onChange={handleInputChange} />
+              <input name="endDate" className="advanced-input" placeholder="Date fin" type="text" onFocus={(e) => e.target.type = 'date'} onBlur={(e) => { if (!e.target.value) e.target.type = 'text'; }} value={fields.endDate} onChange={handleInputChange} />
             </div>
           </div>
         )}

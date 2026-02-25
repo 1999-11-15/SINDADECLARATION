@@ -3,11 +3,16 @@ package com.sindatest.service;
 import com.sindatest.entity.Decart;
 import com.sindatest.entity.Decent;
 import com.sindatest.entity.Decoli;
+import com.sindatest.entity.DecentSearchDTO;
 import com.sindatest.entity.Dectax;
 import com.sindatest.entity.id.DecentId;
 import com.sindatest.repository.DecentRepository;
+import com.sindatest.specification.DecentSpecification;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -151,5 +156,32 @@ public class DecentService {
 
     public List<Decent> findActiveByBureau(Integer debur, String deimpexp) {
         return decentRepository.findActiveByBureau(debur, deimpexp);
+    }
+
+    /**
+     * Recherche simple Mode 1 — 3 champs (debur, denumdec, dedatin).
+     * Retourne une liste non paginée.
+     */
+    public List<Decent> simpleSearch(Integer debur, String denumdec, LocalDateTime dedatin) {
+        Specification<Decent> spec = DecentSpecification.simpleSearch(debur, denumdec, dedatin);
+        return decentRepository.findAll(spec);
+    }
+
+    /**
+     * Recherche IMP/EXP Mode 2 — 4 champs (debur, deimpexp, derepert, dedatin).
+     * Retourne une liste non paginée.
+     */
+    public List<Decent> impExpSearch(Integer debur, String deimpexp, Long derepert, LocalDateTime dedatin) {
+        Specification<Decent> spec = DecentSpecification.impExpSearch(debur, deimpexp, derepert, dedatin);
+        return decentRepository.findAll(spec);
+    }
+
+    /**
+     * Recherche multicritère dynamique avec pagination.
+     * Seuls les critères non nuls du DTO sont pris en compte (AND logique).
+     */
+    public Page<Decent> searchDeclarations(DecentSearchDTO dto, Pageable pageable) {
+        Specification<Decent> spec = DecentSpecification.advancedSearch(dto);
+        return decentRepository.findAll(spec, pageable);
     }
 }

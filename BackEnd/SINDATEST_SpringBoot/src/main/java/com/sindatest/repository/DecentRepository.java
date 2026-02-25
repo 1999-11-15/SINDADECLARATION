@@ -3,6 +3,7 @@ package com.sindatest.repository;
 import com.sindatest.entity.Decent;
 import com.sindatest.entity.id.DecentId;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -13,7 +14,7 @@ import java.util.List;
  * Repository pour la table DECENT (en-tête déclaration).
  */
 @Repository
-public interface DecentRepository extends JpaRepository<Decent, DecentId> {
+public interface DecentRepository extends JpaRepository<Decent, DecentId>, JpaSpecificationExecutor<Decent> {
 
     /** Recherche par bureau de dédouanement */
     List<Decent> findByDebur(Integer debur);

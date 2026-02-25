@@ -14,7 +14,8 @@ import java.util.List;
 
 /**
  * Spécification JPA pour la recherche avancée de déclarations.
- * Supporte les champs de l'entête (DECENT) et des articles (DECART).
+ * Supporte les champs de l'entête (DECENT), les articles (DECART) et les colis
+ * (DECOLI).
  */
 public class DecentSpecification {
 
@@ -22,30 +23,37 @@ public class DecentSpecification {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            // ─── Identification déclaration (DECENT) ────────────────//////
+            // ─── Champs communs aux deux modes ───────────────────────
             if (dto.getDebur() != null) {
                 predicates.add(cb.equal(root.get("debur"), dto.getDebur()));
-            }
-            if (dto.getDeimpexp() != null && !dto.getDeimpexp().isEmpty()) {
-                predicates.add(cb.equal(root.get("deimpexp"), dto.getDeimpexp()));
             }
             if (dto.getDerepert() != null) {
                 predicates.add(cb.equal(root.get("derepert"), dto.getDerepert()));
             }
 
-            // ─── Déclaration Fields (DECENT) ──────────────────────
-            if (dto.getCodeDeclaration() != null && !dto.getCodeDeclaration().isEmpty()) {
-                // Maps to denumdec (String)
-                predicates.add(cb.equal(root.get("denumdec"), dto.getCodeDeclaration()));
+            // ─── Mode 1 : Numéro de déclaration ─────────────────────
+            if (dto.getDenumdec() != null && !dto.getDenumdec().isEmpty()) {
+                predicates.add(cb.equal(root.get("denumdec"), dto.getDenumdec()));
             }
+
+            // ─── Mode 2 : IMP/EXP ────────────────────────────────────
+            if (dto.getDeimpexp() != null && !dto.getDeimpexp().isEmpty()) {
+                predicates.add(cb.equal(root.get("deimpexp"), dto.getDeimpexp()));
+            }
+            if (dto.getDedatin() != null) {
+                // Recherche sur la journée entière de dedatin
+                predicates.add(
+                        cb.greaterThanOrEqualTo(root.get("dedatin"), dto.getDedatin().toLocalDate().atStartOfDay()));
+                predicates.add(
+                        cb.lessThan(root.get("dedatin"), dto.getDedatin().toLocalDate().plusDays(1).atStartOfDay()));
+            }
+
+            // ─── Recherche avancée : champs DECENT ──────────────────
             if (dto.getDetypdec() != null && !dto.getDetypdec().isEmpty()) {
                 predicates.add(cb.equal(root.get("detypdec"), dto.getDetypdec()));
             }
-            if (dto.getDedatin() != null) {
-                predicates.add(cb.equal(root.get("dedatin"), dto.getDedatin()));
-            }
 
-            // Date Range for dedatin
+            // Plage de dates (startDate / endDate) sur dedatin
             if (dto.getStartDate() != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.get("dedatin"), dto.getStartDate()));
             }
@@ -53,38 +61,32 @@ public class DecentSpecification {
                 predicates.add(cb.lessThanOrEqualTo(root.get("dedatin"), dto.getEndDate()));
             }
 
-            // ─── Article Fields (DECART - JOIN) ───────────────────
-            boolean joinNeeded = (dto.getNumeroTCE() != null && !dto.getNumeroTCE().isEmpty())
+            // ─── Recherche avancée : JOIN DECART ────────────────────
+            boolean joinArticleNeeded = (dto.getNumeroTCE() != null && !dto.getNumeroTCE().isEmpty())
                     || (dto.getDaregdecl() != null)
                     || (dto.getDanomencl() != null && !dto.getDanomencl().isEmpty());
 
-            if (joinNeeded) {
-                // Join avec DECART
+            if (joinArticleNeeded) {
                 Join<Decent, Decart> articles = root.join("articles", JoinType.INNER);
 
-                // numeroTCE (String dans DTO) -> danumtcce (Long dans DB)
                 if (dto.getNumeroTCE() != null && !dto.getNumeroTCE().isEmpty()) {
                     try {
                         Long numTce = Long.parseLong(dto.getNumeroTCE());
                         predicates.add(cb.equal(articles.get("danumtcce"), numTce));
                     } catch (NumberFormatException e) {
-                        // Si le format n'est pas numérique, impossible de trouver une correspondance
                         predicates.add(cb.disjunction());
                     }
                 }
-
                 if (dto.getDaregdecl() != null) {
                     predicates.add(cb.equal(articles.get("daregdecl"), dto.getDaregdecl()));
                 }
-
                 if (dto.getDanomencl() != null && !dto.getDanomencl().isEmpty()) {
                     predicates.add(cb.equal(articles.get("danomencl"), dto.getDanomencl()));
                 }
-                // Éviter les doublons de DECENT si plusieurs articles correspondent
                 query.distinct(true);
             }
 
-            // ─── Colis Fields (DECOLI - JOIN) ──────────────────────
+            // ─── Recherche avancée : JOIN DECOLI ─────────────────────
             boolean colisJoinNeeded = (dto.getDcnumesc() != null) || (dto.getDcrubr() != null);
 
             if (colisJoinNeeded) {
@@ -97,6 +99,63 @@ public class DecentSpecification {
                     predicates.add(cb.equal(colis.get("dcrubr"), dto.getDcrubr()));
                 }
                 query.distinct(true);
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+    }
+
+    /**
+     * Recherche simple par numéro de déclaration (Mode 1 — 3 champs).
+     * Champs : debur, denumdec, dedatin. Les champs null sont ignorés.
+     * dedatin effectue une recherche sur la journée entière.
+     */
+    public static Specification<Decent> simpleSearch(Integer debur, String denumdec,
+            java.time.LocalDateTime dedatin) {
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (debur != null) {
+                predicates.add(cb.equal(root.get("debur"), debur));
+            }
+            if (denumdec != null && !denumdec.isEmpty()) {
+                predicates.add(cb.equal(root.get("denumdec"), denumdec));
+            }
+            if (dedatin != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("dedatin"),
+                        dedatin.toLocalDate().atStartOfDay()));
+                predicates.add(cb.lessThan(root.get("dedatin"),
+                        dedatin.toLocalDate().plusDays(1).atStartOfDay()));
+            }
+
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+    }
+
+    /**
+     * Recherche IMP/EXP (Mode 2 — 4 champs).
+     * Champs : debur, deimpexp, derepert, dedatin. Les champs null sont ignorés.
+     * dedatin effectue une recherche sur la journée entière.
+     */
+    public static Specification<Decent> impExpSearch(Integer debur, String deimpexp,
+            Long derepert, java.time.LocalDateTime dedatin) {
+        return (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (debur != null) {
+                predicates.add(cb.equal(root.get("debur"), debur));
+            }
+            if (deimpexp != null && !deimpexp.isEmpty()) {
+                predicates.add(cb.equal(root.get("deimpexp"), deimpexp));
+            }
+            if (derepert != null) {
+                predicates.add(cb.equal(root.get("derepert"), derepert));
+            }
+            if (dedatin != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("dedatin"),
+                        dedatin.toLocalDate().atStartOfDay()));
+                predicates.add(cb.lessThan(root.get("dedatin"),
+                        dedatin.toLocalDate().plusDays(1).atStartOfDay()));
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));

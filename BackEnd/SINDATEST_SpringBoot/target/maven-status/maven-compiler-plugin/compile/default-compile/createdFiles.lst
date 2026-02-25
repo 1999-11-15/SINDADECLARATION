@@ -22,7 +22,6 @@ com\sindatest\entity\id\DecmessId.class
 com\sindatest\entity\id\DecmessrecId.class
 com\sindatest\entity\id\DecartId.class
 com\sindatest\repository\DecartRepository.class
-com\sindatest\service\DeclarationRechercheService.class
 com\sindatest\entity\id\DecentId.class
 com\sindatest\entity\id\DectaxId.class
 com\sindatest\repository\DecmessrecRepository.class
@@ -41,12 +40,10 @@ com\sindatest\entity\id\DecaffectId.class
 com\sindatest\entity\Decart.class
 com\sindatest\repository\DectaxRepository.class
 com\sindatest\controller\DecselectController.class
-com\sindatest\repository\DecentRepositoryDTO.class
 com\sindatest\entity\id\DecoliId.class
 com\sindatest\repository\DecaffectRepository.class
 com\sindatest\controller\DecoliController.class
 com\sindatest\controller\DecmessrecController.class
-com\sindatest\controller\DeclarationRechercheController.class
 com\sindatest\repository\DecpaieRepository.class
 com\sindatest\repository\DecrecapRepository.class
 com\sindatest\entity\Decrecap.class

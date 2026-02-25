@@ -25,25 +25,7 @@ function App() {
     setLoading(true);
     try {
       const data = await declarationService.getAllDeclarations();
-      // Map backend data to frontend structure for the 9-column table
-      const mappedData = data.map(item => {
-        const firstArticle = item.articles && item.articles.length > 0 ? item.articles[0] : {};
-        return {
-          debur: item.debur,
-          deimpexp: item.deimpexp,
-          derepert: item.derepert,
-          denumdec: item.denumdec,
-          danumtcce: firstArticle.danumtcce || 'N/A',
-          daregdecl: firstArticle.daregdecl || 'N/A',
-          detypdec: item.detypdec,
-          dedatin: item.dedatin ? new Date(item.dedatin).toISOString().split('T')[0] : 'N/A',
-          danomencl: firstArticle.danomencl || 'N/A',
-          // Keep original and metadata for internal use if needed
-          id: `ID-${item.debur}-${item.deimpexp}-${item.derepert}`,
-          original: item
-        };
-      });
-      setSearchResults(mappedData);
+      setSearchResults(mapDeclarations(data));
       setShowResults(true);
     } catch (error) {
       console.error("Failed to fetch declarations", error);
@@ -52,54 +34,92 @@ function App() {
     }
   };
 
+  // Helper: map backend Decent objects to frontend table rows
+  const mapDeclarations = (data) => {
+    return data.map(item => {
+      const firstArticle = item.articles && item.articles.length > 0 ? item.articles[0] : {};
+      return {
+        debur: item.debur,
+        deimpexp: item.deimpexp,
+        derepert: item.derepert,
+        denumdec: item.denumdec,
+        danumtcce: firstArticle.danumtcce || 'N/A',
+        daregdecl: firstArticle.daregdecl || 'N/A',
+        detypdec: item.detypdec,
+        dedatin: item.dedatin ? new Date(item.dedatin).toISOString().split('T')[0] : 'N/A',
+        danomencl: firstArticle.danomencl || 'N/A',
+        id: `ID-${item.debur}-${item.deimpexp}-${item.derepert}`,
+        original: item
+      };
+    });
+  };
+
   const handleSearch = async (fields) => {
     console.log("SEARCH START", fields);
     setLoading(true);
     try {
-      // Map frontend field names to DecentSearchDTO fields
-      const criteria = {
-        debur: fields.bureau ? parseInt(fields.bureau) : null,
-        deimpexp: fields.codeOperateur || null,
-        derepert: fields.numRepertoire ? parseInt(fields.numRepertoire) : null,
-        // Advanced fields
-        numeroTCE: fields.numeroTCE || null,
-        danomencl: fields.danomencl || null,
-        detypdec: fields.detypdec || null,
-        daregdecl: fields.regime ? parseInt(fields.regime) : null,
-        // Manifest fields (JOIN Decoli)
-        dcnumesc: fields.dcnumesc ? parseInt(fields.dcnumesc) : null,
-        dcrubr: fields.dcrubr ? parseInt(fields.dcrubr) : null,
-        // Dates
-        startDate: fields.startDate ? `${fields.startDate}T00:00:00` : null,
-        endDate: fields.endDate ? `${fields.endDate}T23:59:59` : null
-      };
+      const { searchMode } = fields;
 
-      // Check if any criteria is provided
-      const hasCriteria = Object.values(criteria).some(val => val !== null);
+      // --- Check if any advanced search field is filled ---
+      const advancedFields = ['dcnumesc', 'dcrubr', 'numeroTCE', 'danomencl', 'detypdec', 'regime', 'startDate', 'endDate'];
+      const hasAdvanced = advancedFields.some(key => fields[key] && fields[key].trim() !== '');
 
-      if (!hasCriteria) {
-        await fetchAll();
+      let data;
+
+      if (hasAdvanced) {
+        // ── Advanced search → POST /search (paginated) ──
+        const criteria = {
+          debur: fields.bureau ? parseInt(fields.bureau) : null,
+          derepert: fields.numRepertoire ? parseInt(fields.numRepertoire) : null,
+          denumdec: fields.numDeclaration || null,
+          deimpexp: fields.codeOperateur || null,
+          dedatin: fields.dateDec ? `${fields.dateDec}T00:00:00` : null,
+          numeroTCE: fields.numeroTCE || null,
+          danomencl: fields.danomencl || null,
+          detypdec: fields.detypdec || null,
+          daregdecl: fields.regime ? parseInt(fields.regime) : null,
+          dcnumesc: fields.dcnumesc ? parseInt(fields.dcnumesc) : null,
+          dcrubr: fields.dcrubr ? parseInt(fields.dcrubr) : null,
+          startDate: fields.startDate ? `${fields.startDate}T00:00:00` : null,
+          endDate: fields.endDate ? `${fields.endDate}T23:59:59` : null
+        };
+        const cleanCriteria = Object.fromEntries(
+          Object.entries(criteria).filter(([_, v]) => v !== null)
+        );
+        const result = await declarationService.searchDeclarations(cleanCriteria);
+        data = result.content; // Page<Decent> → .content
+
+      } else if (searchMode === 'impExp') {
+        // ── IMP/EXP search → GET /impexp-search (4 fields) ──
+        const params = {};
+        if (fields.bureau) params.debur = fields.bureau;
+        if (fields.codeOperateur) params.deimpexp = fields.codeOperateur;
+        if (fields.numRepertoire) params.derepert = fields.numRepertoire;
+        if (fields.dateDec) params.dedatin = `${fields.dateDec}T00:00:00`;
+
+        if (Object.keys(params).length === 0) {
+          await fetchAll();
+          return;
+        }
+        data = await declarationService.impExpSearch(params);
+
       } else {
-        const data = await declarationService.searchDeclarations(criteria);
-        const mappedData = data.content.map(item => {
-          const firstArticle = item.articles && item.articles.length > 0 ? item.articles[0] : {};
-          return {
-            debur: item.debur,
-            deimpexp: item.deimpexp,
-            derepert: item.derepert,
-            denumdec: item.denumdec,
-            danumtcce: firstArticle.danumtcce || 'N/A',
-            daregdecl: firstArticle.daregdecl || 'N/A',
-            detypdec: item.detypdec,
-            dedatin: item.dedatin ? new Date(item.dedatin).toISOString().split('T')[0] : 'N/A',
-            danomencl: firstArticle.danomencl || 'N/A',
-            id: `ID-${item.debur}-${item.deimpexp}-${item.derepert}`,
-            original: item
-          };
-        });
-        setSearchResults(mappedData);
-        setShowResults(true);
+        // ── Simple search → GET /simple-search (3 fields) ──
+        const params = {};
+        if (fields.bureau) params.debur = fields.bureau;
+        if (fields.numDeclaration) params.denumdec = fields.numDeclaration;
+        if (fields.dateDec) params.dedatin = `${fields.dateDec}T00:00:00`;
+
+        if (Object.keys(params).length === 0) {
+          await fetchAll();
+          return;
+        }
+        data = await declarationService.simpleSearch(params);
       }
+
+      setSearchResults(mapDeclarations(data));
+      setShowResults(true);
+
     } catch (error) {
       console.error("Search failed", error);
     } finally {

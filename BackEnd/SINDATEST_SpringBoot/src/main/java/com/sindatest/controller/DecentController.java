@@ -1,15 +1,23 @@
 package com.sindatest.controller;
 
 import com.sindatest.entity.Decent;
+import com.sindatest.entity.DecentSearchDTO;
 import com.sindatest.entity.id.DecentId;
 import com.sindatest.service.DecentService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
+
+import org.springframework.format.annotation.DateTimeFormat;
 
 /**
  * REST Controller pour la table DECENT.
@@ -63,9 +71,63 @@ public class DecentController {
         return ResponseEntity.ok(decentService.findActiveByBureau(debur, deimpexp));
     }
 
-    // ─── POST (Creation & State Changes) ─────────────────────
+    // ─── GET (Simple Searches) ───────────────────────────────
 
-    // ─── CREATION ────────────────────────────────────────────
+    /**
+     * Recherche simple Mode 1 — 3 champs.
+     * GET
+     * /api/declarations/simple-search?debur=13&denumdec=ABC&dedatin=2024-01-15T00:00:00
+     * Tous les paramètres sont optionnels, seuls les non-nuls sont pris en compte.
+     */
+    @GetMapping("/simple-search")
+    public ResponseEntity<List<Decent>> simpleSearch(
+            @RequestParam(name = "debur", required = false) Integer debur,
+            @RequestParam(name = "denumdec", required = false) String denumdec,
+            @RequestParam(name = "dedatin", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dedatin) {
+        return ResponseEntity.ok(decentService.simpleSearch(debur, denumdec, dedatin));
+    }
+
+    /**
+     * Recherche IMP/EXP Mode 2 — 4 champs.
+     * GET
+     * /api/declarations/impexp-search?debur=13&deimpexp=00000001&derepert=12345&dedatin=2024-01-15T00:00:00
+     * Tous les paramètres sont optionnels, seuls les non-nuls sont pris en compte.
+     */
+    @GetMapping("/impexp-search")
+    public ResponseEntity<List<Decent>> impExpSearch(
+            @RequestParam(name = "debur", required = false) Integer debur,
+            @RequestParam(name = "deimpexp", required = false) String deimpexp,
+            @RequestParam(name = "derepert", required = false) Long derepert,
+            @RequestParam(name = "dedatin", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dedatin) {
+        return ResponseEntity.ok(decentService.impExpSearch(debur, deimpexp, derepert, dedatin));
+    }
+
+    // ─── POST (Search) ───────────────────────────────────────
+
+    /**
+     * Recherche multicritère dynamique avec pagination.
+     * POST /api/declarations/search?page=0&size=10&sortBy=dedatin&direction=DESC
+     * Body: DecentSearchDTO (JSON) — seuls les champs renseignés sont pris en
+     * compte.
+     */
+    @PostMapping("/search")
+    public ResponseEntity<Page<Decent>> search(
+            @RequestBody DecentSearchDTO searchDTO,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "10") int size,
+            @RequestParam(name = "sortBy", defaultValue = "dedatin") String sortBy,
+            @RequestParam(name = "direction", defaultValue = "DESC") String direction) {
+
+        Sort sort = direction.equalsIgnoreCase("ASC")
+                ? Sort.by(sortBy).ascending()
+                : Sort.by(sortBy).descending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        Page<Decent> results = decentService.searchDeclarations(searchDTO, pageable);
+        return ResponseEntity.ok(results);
+    }
+
+    // ─── POST (Creation & State Changes) ─────────────────────
 
     /** Créer une nouvelle déclaration */
     @PostMapping("/create")
